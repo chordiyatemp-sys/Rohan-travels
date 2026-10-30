@@ -1,0 +1,1423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Rohan's Travels - Pan-India AR Explorer</title>
+
+  <!-- WebAR Libraries -->
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --accent: #10b981;
+      --danger: #ef4444;
+      --surface: #111827;
+      --surface-card: #1f2937;
+      --border: rgba(255, 255, 255, 0.12);
+      --text: #f9fafb;
+      --text-muted: #9ca3af;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #030712;
+      color: var(--text);
+      width: 100vw;
+      height: 100vh;
+    }
+
+    /* Video feed positioning */
+    video {
+      position: absolute !important;
+      top: 0 !important; left: 0 !important;
+      width: 100% !important; height: 100% !important;
+      object-fit: cover !important;
+      z-index: 0 !important;
+    }
+
+    .a-canvas {
+      position: absolute !important;
+      top: 0 !important; left: 0 !important;
+      width: 100% !important; height: 100% !important;
+      z-index: 1 !important;
+    }
+
+    /* =========================================================================
+       VIEW 1: STATE SELECTION PORTAL (HOME)
+       ========================================================================= */
+    #portal-view {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(circle at top, #1e293b 0%, #030712 100%);
+      z-index: 5000;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      padding: 24px 16px 80px;
+    }
+
+    .portal-header {
+      max-width: 760px;
+      margin: 0 auto 20px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .portal-title {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #60a5fa, #a855f7);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 6px;
+    }
+
+    .portal-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 18px;
+    }
+
+    .search-wrapper {
+      position: relative;
+      max-width: 460px;
+      margin: 0 auto 12px;
+    }
+
+    .search-bar {
+      width: 100%;
+      background: rgba(31, 41, 55, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 9999px;
+      padding: 12px 20px 12px 42px;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.3);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 15px;
+      color: var(--text-muted);
+    }
+
+    .portal-grid-container {
+      max-width: 760px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 700;
+      color: #60a5fa;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .region-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+    }
+
+    .region-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 12px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .region-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(59, 130, 246, 0.5);
+      background: #283548;
+    }
+
+    .region-card:active {
+      transform: scale(0.98);
+    }
+
+    .region-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .region-badge {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .region-badge.has-data {
+      color: #34d399;
+      font-weight: 600;
+    }
+
+    .portal-footer-actions {
+      max-width: 760px;
+      margin: 20px auto 0;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn-ghost {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .btn-ghost:hover {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* =========================================================================
+       VIEW 2: ACTIVE AR SCANNER & CONTROLS
+       ========================================================================= */
+    #ar-hud {
+      display: none;
+    }
+
+    .ar-top-bar {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 1000;
+      pointer-events: none;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .ar-top-bar > * {
+      pointer-events: auto;
+    }
+
+    .btn-back-home {
+      background: rgba(17, 24, 39, 0.88);
+      backdrop-filter: blur(8px);
+      color: #fff;
+      border: 1px solid var(--border);
+      padding: 8px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    }
+
+    #status-pill {
+      background: rgba(17, 24, 39, 0.92);
+      backdrop-filter: blur(8px);
+      color: #fff;
+      padding: 9px 16px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      transition: all 0.25s ease;
+      white-space: nowrap;
+    }
+
+    .ar-actions-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .btn-add-city {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      padding: 9px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(59, 130, 246, 0.5);
+    }
+
+    .btn-pc-scan {
+      background: #8b5cf6;
+      color: #fff;
+      border: none;
+      padding: 9px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(139, 92, 246, 0.5);
+    }
+
+    /* Alignment Reticle */
+    #scan-reticle {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 72vw;
+      max-width: 380px;
+      aspect-ratio: 1 / 1;
+      border: 2px dashed rgba(255, 255, 255, 0.2);
+      border-radius: 24px;
+      z-index: 500;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 8px;
+      transition: border-color 0.3s ease;
+    }
+
+    #scan-reticle.tracked {
+      border-color: rgba(16, 185, 129, 0.6);
+      border-style: solid;
+    }
+
+    .reticle-guide-text {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      background: rgba(0, 0, 0, 0.5);
+      padding: 4px 10px;
+      border-radius: 9999px;
+      backdrop-filter: blur(4px);
+    }
+
+    /* Quick City Access Bar */
+    #city-quick-bar {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+      gap: 10px;
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.88);
+      padding: 8px 14px;
+      border-radius: 9999px;
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      max-width: 90vw;
+      overflow-x: auto;
+    }
+
+    #city-quick-bar::-webkit-scrollbar { display: none; }
+
+    .quick-chip {
+      background: #1f2937;
+      color: #f3f4f6;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 7px 14px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    /* =========================================================================
+       PHOTO DRAWER & LIGHTBOX
+       ========================================================================= */
+    #city-drawer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-radius: 20px 20px 0 0;
+      padding: 16px 16px 28px;
+      z-index: 2000;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.7);
+      animation: slideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+
+    .drawer-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 4px;
+    }
+
+    .drawer-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .drawer-top h3 {
+      color: #f9fafb;
+      font-size: 17px;
+      font-weight: 700;
+    }
+
+    .btn-action-sm {
+      background: rgba(255, 255, 255, 0.12);
+      border: none;
+      color: #fff;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-delete-city {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .close-btn {
+      background: rgba(255, 255, 255, 0.12);
+      border: none;
+      color: #fff;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .gallery-row {
+      display: flex;
+      gap: 14px;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      padding: 4px 0 8px;
+      min-height: 180px;
+      align-items: center;
+    }
+
+    .gallery-row::-webkit-scrollbar { display: none; }
+
+    .gallery-card {
+      flex: 0 0 250px;
+      height: 170px;
+      border-radius: 12px;
+      overflow: hidden;
+      position: relative;
+      background: var(--surface-card);
+      scroll-snap-align: center;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .gallery-card:hover { transform: scale(1.02); }
+
+    .gallery-card img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .gallery-card .tag {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      background: rgba(0, 0, 0, 0.75);
+      color: #fff;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      backdrop-filter: blur(4px);
+      max-width: 70%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .btn-del-photo {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(239, 68, 68, 0.85);
+      color: white;
+      border: none;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+      z-index: 5;
+    }
+
+    .empty-gallery {
+      color: var(--text-muted);
+      font-size: 13px;
+      width: 100%;
+      text-align: center;
+    }
+
+    /* Lightbox Modal */
+    #lightbox-modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.95);
+      backdrop-filter: blur(10px);
+      z-index: 10000;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .lightbox-close-btn {
+      position: absolute;
+      top: 24px; right: 24px;
+      background: rgba(255, 255, 255, 0.15);
+      border: none;
+      color: #fff;
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      font-size: 20px;
+      cursor: pointer;
+      z-index: 10002;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .lightbox-content-box {
+      position: relative;
+      width: 90vw;
+      max-width: 900px;
+      height: 75vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #lightbox-img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+    }
+
+    .lightbox-nav-btn {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      background: rgba(17, 24, 39, 0.8);
+      border: 1px solid var(--border);
+      color: #fff;
+      width: 52px; height: 52px;
+      border-radius: 50%;
+      font-size: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 10001;
+    }
+
+    #lightbox-prev { left: 16px; }
+    #lightbox-next { right: 16px; }
+
+    .lightbox-footer {
+      position: absolute;
+      bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      color: #fff;
+      text-align: center;
+    }
+
+    #lightbox-caption {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    #lightbox-counter {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Modal Styling */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      z-index: 9998;
+      display: none;
+    }
+
+    #add-modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      max-width: 440px;
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px;
+      z-index: 9999;
+      color: #fff;
+      display: none;
+      flex-direction: column;
+      gap: 14px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
+      pointer-events: auto !important;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .form-group input, .form-group select {
+      background: #111827;
+      border: 1px solid #374151;
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .file-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #374151;
+      border: 2px dashed #6b7280;
+      border-radius: 10px;
+      padding: 14px;
+      color: #e5e7eb;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    #file-count-text {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      display: block;
+    }
+
+    .submit-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 12px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =====================================================================
+       1. STATE SELECTION PORTAL (HOME)
+       ===================================================================== -->
+  <div id="portal-view">
+    <div class="portal-header">
+      <h1 class="portal-title">Rohan's Travels in India</h1>
+      <p class="portal-subtitle">Select a State or Territory to scan and unlock its AR memory map</p>
+      
+      <div class="search-wrapper">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="state-search-input" class="search-bar" placeholder="Search state (e.g. Maharashtra, Goa, Ladakh)..." oninput="filterRegions(this.value)">
+      </div>
+    </div>
+
+    <div class="portal-grid-container">
+      <div class="section-title">States (28)</div>
+      <div class="region-grid" id="states-grid"></div>
+
+      <div class="section-title">Union Territories (8)</div>
+      <div class="region-grid" id="uts-grid"></div>
+    </div>
+
+    <div class="portal-footer-actions">
+      <button class="btn-ghost" onclick="exportDataBackup()">💾 Export AR Data Backup</button>
+      <input type="file" id="import-file-input" accept=".json" style="display: none;" onchange="importDataBackup(this)">
+      <button class="btn-ghost" onclick="document.getElementById('import-file-input').click()">📥 Restore Backup</button>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       2. AR VIEWPORT & HEADS-UP DISPLAY
+       ===================================================================== -->
+  <div id="ar-hud">
+    <div class="ar-top-bar">
+      <button class="btn-back-home" onclick="returnToPortal()">
+        ◀ Change State
+      </button>
+      <div id="status-pill">Ready to scan</div>
+      <div class="ar-actions-group">
+        <input type="file" id="pc-scan-input" accept="image/*" style="display: none;" onchange="simulatePCScan(this)">
+        <button class="btn-pc-scan" onclick="document.getElementById('pc-scan-input').click()" title="Simulate scan using an image from your PC">📁 Scan from PC</button>
+        <button class="btn-add-city" onclick="openAddCityModal()">➕ Add City</button>
+      </div>
+    </div>
+
+    <!-- Alignment Target Reticle -->
+    <div id="scan-reticle">
+      <span class="reticle-guide-text" id="reticle-state-name">Align page here</span>
+    </div>
+
+    <div id="city-quick-bar"></div>
+  </div>
+
+  <!-- A-Frame Scene -->
+  <a-scene 
+    id="ar-scene"
+    mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; filterMinCF:0.001; filterBeta: 1000; uiLoading: no; uiError: yes;" 
+    color-space="sRGB" 
+    renderer="colorManagement: true, physicallyCorrectLights" 
+    vr-mode-ui="enabled: false" 
+    device-orientation-permission-ui="enabled: false"
+    embedded>
+
+    <a-camera position="0 0 0" look-controls="enabled: false" cursor="rayOrigin: mouse" raycaster="far: 10000; objects: .clickable">
+    </a-camera>
+
+    <!-- Anchors dynamically populated by script -->
+    <a-entity id="all-targets-container"></a-entity>
+  </a-scene>
+
+  <!-- Photo Drawer Modal -->
+  <div id="city-drawer">
+    <div class="drawer-top">
+      <h3 id="drawer-title">City Photos</h3>
+      <div class="drawer-actions">
+        <input type="file" id="extra-photos-input" accept="image/*" multiple style="display: none;" onchange="handleAppendPhotos(this)">
+        <button class="btn-action-sm" onclick="document.getElementById('extra-photos-input').click()">➕ Add Photos</button>
+        <button class="btn-action-sm btn-delete-city" onclick="deleteActiveCity()">🗑 Delete City</button>
+        <button class="close-btn" onclick="closeDrawer()">✕</button>
+      </div>
+    </div>
+    <div class="gallery-row" id="gallery-row"></div>
+  </div>
+
+  <!-- Fullscreen Lightbox -->
+  <div id="lightbox-modal">
+    <button class="lightbox-close-btn" onclick="closeLightbox()">✕</button>
+    <button class="lightbox-nav-btn" id="lightbox-prev" onclick="changeLightboxImage(-1)">◀</button>
+    
+    <div class="lightbox-content-box">
+      <img id="lightbox-img" src="" alt="Maximized photo">
+    </div>
+
+    <button class="lightbox-nav-btn" id="lightbox-next" onclick="changeLightboxImage(1)">▶</button>
+    
+    <div class="lightbox-footer">
+      <span id="lightbox-caption">Caption</span>
+      <span id="lightbox-counter">1 / 1</span>
+    </div>
+  </div>
+
+  <!-- Add City Modal -->
+  <div class="modal-backdrop" id="modal-backdrop" onclick="closeAddCityModal()"></div>
+  <div id="add-modal">
+    <div class="drawer-top">
+      <h3 id="modal-title">Add City to State</h3>
+      <button class="close-btn" onclick="closeAddCityModal()">✕</button>
+    </div>
+
+    <div class="form-group">
+      <label>Current Selected State</label>
+      <input type="text" id="target-state-display" readonly style="opacity: 0.7;">
+    </div>
+
+    <div class="form-group">
+      <label>City Name</label>
+      <input type="text" id="new-city-name" placeholder="e.g. Pune, Udaipur, Panaji">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group" style="flex:1;">
+        <label>Marker Color</label>
+        <input type="color" id="new-city-color" value="#ef4444" style="height:42px; padding:2px;">
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label>X (-0.4 to 0.4)</label>
+        <input type="number" id="pos-x" step="0.02" value="0.00">
+      </div>
+      <div class="form-group" style="flex:1;">
+        <label>Y (-0.4 to 0.4)</label>
+        <input type="number" id="pos-y" step="0.02" value="0.00">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Select Desktop Images (Up to 5000)</label>
+      <input type="file" id="new-city-files" accept="image/*" multiple style="display: none;" onchange="updateSelectedFileLabel(this)">
+      <label for="new-city-files" class="file-btn">
+        📁 Choose photos from desktop
+      </label>
+      <span id="file-count-text">No images chosen yet</span>
+    </div>
+
+    <button class="submit-btn" onclick="saveNewCity()">Save City & Attach to AR</button>
+  </div>
+
+  <script>
+    // --- 1. Master State & UT Directory (All 36 Covered, Indices 0 - 35) ---
+    const ALL_REGIONS = [
+      // 28 States (Indices 0 - 27)
+      { id: "andhra-pradesh", name: "Andhra Pradesh", isUT: false, index: 0 },
+      { id: "arunachal-pradesh", name: "Arunachal Pradesh", isUT: false, index: 1 },
+      { id: "assam", name: "Assam", isUT: false, index: 2 },
+      { id: "bihar", name: "Bihar", isUT: false, index: 3 },
+      { id: "chhattisgarh", name: "Chhattisgarh", isUT: false, index: 4 },
+      { id: "goa", name: "Goa", isUT: false, index: 5 },
+      { id: "gujarat", name: "Gujarat", isUT: false, index: 6 },
+      { id: "haryana", name: "Haryana", isUT: false, index: 7 },
+      { id: "himachal-pradesh", name: "Himachal Pradesh", isUT: false, index: 8 },
+      { id: "jharkhand", name: "Jharkhand", isUT: false, index: 9 },
+      { id: "karnataka", name: "Karnataka", isUT: false, index: 10 },
+      { id: "kerala", name: "Kerala", isUT: false, index: 11 },
+      { id: "madhya-pradesh", name: "Madhya Pradesh", isUT: false, index: 12 },
+      { id: "maharashtra", name: "Maharashtra", isUT: false, index: 13 },
+      { id: "manipur", name: "Manipur", isUT: false, index: 14 },
+      { id: "meghalaya", name: "Meghalaya", isUT: false, index: 15 },
+      { id: "mizoram", name: "Mizoram", isUT: false, index: 16 },
+      { id: "nagaland", name: "Nagaland", isUT: false, index: 17 },
+      { id: "odisha", name: "Odisha", isUT: false, index: 18 },
+      { id: "punjab", name: "Punjab", isUT: false, index: 19 },
+      { id: "rajasthan", name: "Rajasthan", isUT: false, index: 20 },
+      { id: "sikkim", name: "Sikkim", isUT: false, index: 21 },
+      { id: "tamil-nadu", name: "Tamil Nadu", isUT: false, index: 22 },
+      { id: "telangana", name: "Telangana", isUT: false, index: 23 },
+      { id: "tripura", name: "Tripura", isUT: false, index: 24 },
+      { id: "uttar-pradesh", name: "Uttar Pradesh", isUT: false, index: 25 },
+      { id: "uttarakhand", name: "Uttarakhand", isUT: false, index: 26 },
+      { id: "west-bengal", name: "West Bengal", isUT: false, index: 27 },
+
+      // 8 Union Territories (Indices 28 - 35)
+      { id: "andaman-nicobar", name: "Andaman & Nicobar", isUT: true, index: 28 },
+      { id: "chandigarh", name: "Chandigarh", isUT: true, index: 29 },
+      { id: "dnh-dd", name: "Dadra & Nagar Haveli & Daman & Diu", isUT: true, index: 30 },
+      { id: "delhi", name: "Delhi (NCT)", isUT: true, index: 31 },
+      { id: "jammu-kashmir", name: "Jammu & Kashmir", isUT: true, index: 32 },
+      { id: "ladakh", name: "Ladakh", isUT: true, index: 33 },
+      { id: "lakshadweep", name: "Lakshadweep", isUT: true, index: 34 },
+      { id: "puducherry", name: "Puducherry", isUT: true, index: 35 }
+    ];
+
+    const MAX_CITIES_PER_REGION = 1000;
+    const MAX_IMAGES_PER_REGION = 5000;
+
+    // --- 2. IndexedDB Persistent Storage ---
+    let db;
+    let allCities = [];
+    let selectedRegion = null;
+    let activeCityId = null;
+    let currentLightboxIndex = 0;
+    let arRunning = false;
+
+    function openDatabase() {
+      return new Promise((resolve) => {
+        const req = indexedDB.open("RohanARMasterDB", 2);
+        req.onupgradeneeded = (e) => {
+          const database = e.target.result;
+          if (!database.objectStoreNames.contains("cities")) {
+            const store = database.createObjectStore("cities", { keyPath: "id" });
+            store.createIndex("regionId", "regionId", { unique: false });
+          }
+        };
+        req.onsuccess = (e) => {
+          db = e.target.result;
+          resolve(db);
+        };
+        req.onerror = () => resolve(null);
+      });
+    }
+
+    async function loadAllCities() {
+      if (!db) return [];
+      return new Promise((resolve) => {
+        const tx = db.transaction("cities", "readonly");
+        const store = tx.objectStore("cities");
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => resolve([]);
+      });
+    }
+
+    async function saveCityToDB(city) {
+      if (!db) return;
+      const tx = db.transaction("cities", "readwrite");
+      tx.objectStore("cities").put(city);
+    }
+
+    async function removeCityFromDB(cityId) {
+      if (!db) return;
+      const tx = db.transaction("cities", "readwrite");
+      tx.objectStore("cities").delete(cityId);
+    }
+
+    function readFileAsBase64(file) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // --- 3. Portal UI & Search System ---
+    function renderPortal() {
+      const statesGrid = document.getElementById("states-grid");
+      const utsGrid = document.getElementById("uts-grid");
+      statesGrid.innerHTML = "";
+      utsGrid.innerHTML = "";
+
+      ALL_REGIONS.forEach(region => {
+        const citiesInRegion = allCities.filter(c => c.regionId === region.id);
+        const card = document.createElement("div");
+        card.className = "region-card";
+        card.onclick = () => selectRegionAndStartAR(region);
+
+        const totalPhotos = citiesInRegion.reduce((acc, c) => acc + c.photos.length, 0);
+
+        card.innerHTML = `
+          <div class="region-name">${region.name}</div>
+          <div class="region-badge ${citiesInRegion.length > 0 ? 'has-data' : ''}">
+            ${citiesInRegion.length > 0 ? `📍 ${citiesInRegion.length} cities · ${totalPhotos} photos` : `○ No pins yet`}
+          </div>
+        `;
+
+        if (region.isUT) utsGrid.appendChild(card);
+        else statesGrid.appendChild(card);
+      });
+    }
+
+    function filterRegions(query) {
+      const q = query.toLowerCase();
+      document.querySelectorAll(".region-card").forEach(card => {
+        const name = card.querySelector(".region-name").textContent.toLowerCase();
+        card.style.display = name.includes(q) ? "flex" : "none";
+      });
+    }
+
+    // --- 4. Transition: Portal -> AR Scanner ---
+    const portalView = document.getElementById("portal-view");
+    const arHud = document.getElementById("ar-hud");
+    const statusPill = document.getElementById("status-pill");
+    const scanReticle = document.getElementById("scan-reticle");
+    const reticleStateName = document.getElementById("reticle-state-name");
+    const quickBar = document.getElementById("city-quick-bar");
+    const scene = document.querySelector("#ar-scene");
+    const targetsContainer = document.querySelector("#all-targets-container");
+
+    async function selectRegionAndStartAR(region) {
+      selectedRegion = region;
+      portalView.style.display = "none";
+      arHud.style.display = "block";
+
+      reticleStateName.textContent = `Point at ${region.name} page`;
+      statusPill.textContent = `Scan ${region.name} page`;
+      statusPill.style.background = "rgba(17, 24, 39, 0.92)";
+
+      setupTargetForSelectedRegion();
+      renderPinsForActiveRegion();
+
+      if (!arRunning) {
+        await startARCamera();
+      }
+    }
+
+    function returnToPortal() {
+      selectedRegion = null;
+      arHud.style.display = "none";
+      portalView.style.display = "flex";
+      quickBar.style.display = "none";
+      closeDrawer();
+      renderPortal(); 
+    }
+
+    function setupTargetForSelectedRegion() {
+      targetsContainer.innerHTML = "";
+
+      const targetEntity = document.createElement("a-entity");
+      targetEntity.setAttribute("id", `target-${selectedRegion.id}`);
+      targetEntity.setAttribute("mindar-image-target", `targetIndex: ${selectedRegion.index}`);
+
+      const pinGroup = document.createElement("a-entity");
+      pinGroup.setAttribute("id", "active-pins-group");
+      targetEntity.appendChild(pinGroup);
+
+      targetEntity.addEventListener("targetFound", () => {
+        triggerTargetLockUI();
+      });
+
+      targetEntity.addEventListener("targetLost", () => {
+        scanReticle.classList.remove("tracked");
+        reticleStateName.textContent = `Point at ${selectedRegion.name} page`;
+        statusPill.textContent = `Scan ${selectedRegion.name} page`;
+        statusPill.style.background = "rgba(17, 24, 39, 0.92)";
+        statusPill.style.borderColor = "rgba(255, 255, 255, 0.15)";
+        quickBar.style.display = "none";
+      });
+
+      targetsContainer.appendChild(targetEntity);
+    }
+
+    function triggerTargetLockUI() {
+      scanReticle.classList.add("tracked");
+      reticleStateName.textContent = `✓ ${selectedRegion.name} Tracked`;
+      statusPill.textContent = `📍 ${selectedRegion.name} Page Locked`;
+      statusPill.style.background = "rgba(16, 185, 129, 0.92)";
+      statusPill.style.borderColor = "#10b981";
+
+      const regionCities = allCities.filter(c => c.regionId === selectedRegion.id);
+      if (regionCities.length > 0) quickBar.style.display = "flex";
+    }
+
+    // Fallback simulation for PC image uploads
+    function simulatePCScan(input) {
+      if (!input.files || input.files.length === 0 || !selectedRegion) return;
+      triggerTargetLockUI();
+      input.value = "";
+    }
+
+    function renderPinsForActiveRegion() {
+      const pinGroup = document.querySelector("#active-pins-group");
+      if (!pinGroup) return;
+      pinGroup.innerHTML = "";
+      quickBar.innerHTML = "";
+
+      const regionCities = allCities.filter(c => c.regionId === selectedRegion.id);
+
+      regionCities.forEach(city => {
+        const chip = document.createElement("button");
+        chip.className = "quick-chip";
+        chip.innerHTML = `<span class="dot" style="background:${city.color}"></span> ${city.name} (${city.photos.length})`;
+        chip.onclick = () => showGallery(city.id);
+        quickBar.appendChild(chip);
+
+        const pin = document.createElement("a-entity");
+        pin.setAttribute("id", `pin-${city.id}`);
+        pin.setAttribute("position", city.position);
+        pin.setAttribute("scale", "0.08 0.08 0.08");
+
+        const sphere = document.createElement("a-sphere");
+        sphere.setAttribute("radius", "0.4");
+        sphere.setAttribute("color", city.color || "#ef4444");
+        sphere.setAttribute("material", "roughness: 0.2; metalness: 0.5");
+        sphere.setAttribute("animation", "property: position; to: 0 0.08 0; dir: alternate; dur: 850; loop: true");
+
+        const label = document.createElement("a-text");
+        label.setAttribute("value", city.name);
+        label.setAttribute("align", "center");
+        label.setAttribute("position", "0 0.7 0");
+        label.setAttribute("scale", "3.2 3.2 3.2");
+        label.setAttribute("color", "#ffffff");
+        label.setAttribute("geometry", "primitive: plane; width: 1.8; height: 0.5");
+        label.setAttribute("material", "color: #0f172a; opacity: 0.9");
+
+        const hitbox = document.createElement("a-sphere");
+        hitbox.setAttribute("class", "clickable");
+        hitbox.setAttribute("radius", "0.9");
+        hitbox.setAttribute("material", "opacity: 0.0; transparent: true");
+        hitbox.addEventListener("click", () => showGallery(city.id));
+
+        pin.appendChild(sphere);
+        pin.appendChild(label);
+        pin.appendChild(hitbox);
+        pinGroup.appendChild(pin);
+      });
+    }
+
+    // --- 5. Camera Initializer ---
+    async function startARCamera() {
+      try {
+        statusPill.textContent = "Connecting to camera...";
+        const testStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "environment" }
+        });
+        testStream.getTracks().forEach(track => track.stop());
+
+        const arSystem = scene.systems["mindar-image-system"];
+        await arSystem.start();
+        arRunning = true;
+      } catch (err) {
+        console.warn("Camera fallback or desktop environment detected:", err);
+        statusPill.textContent = "Camera ready (Use 'Scan from PC' if needed)";
+        statusPill.style.background = "rgba(59, 130, 246, 0.92)";
+      }
+    }
+
+    // --- 6. Photo Drawer & Carousel Handlers ---
+    const drawer = document.getElementById("city-drawer");
+    const drawerTitle = document.getElementById("drawer-title");
+    const galleryRow = document.getElementById("gallery-row");
+
+    const lightboxModal = document.getElementById("lightbox-modal");
+    const lightboxImg = document.getElementById("lightbox-img");
+    const lightboxCaption = document.getElementById("lightbox-caption");
+    const lightboxCounter = document.getElementById("lightbox-counter");
+
+    function showGallery(cityId) {
+      activeCityId = cityId;
+      const city = allCities.find(c => c.id === cityId);
+      if (!city) return;
+
+      drawerTitle.textContent = `${city.name}, ${selectedRegion.name} (${city.photos.length} photos)`;
+      galleryRow.innerHTML = "";
+
+      if (city.photos.length === 0) {
+        galleryRow.innerHTML = `<div class="empty-gallery">No photos stored for this city yet. Tap <b>"➕ Add Photos"</b> above!</div>`;
+      } else {
+        city.photos.forEach((photo, index) => {
+          const card = document.createElement("div");
+          card.className = "gallery-card";
+          card.onclick = (e) => {
+            if (!e.target.classList.contains("btn-del-photo")) {
+              openLightbox(index);
+            }
+          };
+
+          card.innerHTML = `
+            <img src="${photo.url}" alt="${photo.caption}">
+            <div class="tag">${photo.caption}</div>
+            <button class="btn-del-photo" title="Delete Photo" onclick="deletePhoto(${index})">✕</button>
+          `;
+          galleryRow.appendChild(card);
+        });
+      }
+
+      drawer.style.display = "flex";
+    }
+
+    async function deletePhoto(photoIndex) {
+      const city = allCities.find(c => c.id === activeCityId);
+      if (!city) return;
+
+      if (!confirm(`Delete photo: "${city.photos[photoIndex].caption}"?`)) return;
+
+      city.photos.splice(photoIndex, 1);
+      await saveCityToDB(city);
+      showGallery(activeCityId);
+    }
+
+    async function handleAppendPhotos(input) {
+      if (!input.files || input.files.length === 0 || !activeCityId) return;
+
+      const city = allCities.find(c => c.id === activeCityId);
+      if (!city) return;
+
+      const currentRegionPhotosCount = allCities
+        .filter(c => c.regionId === selectedRegion.id)
+        .reduce((acc, c) => acc + c.photos.length, 0);
+
+      if (currentRegionPhotosCount + input.files.length > MAX_IMAGES_PER_REGION) {
+        alert(`Cannot exceed limit of ${MAX_IMAGES_PER_REGION} images for ${selectedRegion.name}.`);
+        return;
+      }
+
+      for (let i = 0; i < input.files.length; i++) {
+        const file = input.files[i];
+        const dataUrl = await readFileAsBase64(file);
+        city.photos.push({
+          url: dataUrl,
+          caption: file.name.replace(/\.[^/.]+$/, "")
+        });
+      }
+
+      await saveCityToDB(city);
+      input.value = "";
+      showGallery(activeCityId);
+    }
+
+    async function deleteActiveCity() {
+      const city = allCities.find(c => c.id === activeCityId);
+      if (!city) return;
+
+      if (!confirm(`Delete ${city.name} and all its stored photos?`)) return;
+
+      await removeCityFromDB(activeCityId);
+      allCities = allCities.filter(c => c.id !== activeCityId);
+      renderPinsForActiveRegion();
+      closeDrawer();
+    }
+
+    function closeDrawer() {
+      drawer.style.display = "none";
+      activeCityId = null;
+    }
+
+    function openLightbox(index) {
+      const city = allCities.find(c => c.id === activeCityId);
+      if (!city || city.photos.length === 0) return;
+
+      currentLightboxIndex = index;
+      updateLightboxDisplay();
+      lightboxModal.style.display = "flex";
+    }
+
+    function updateLightboxDisplay() {
+      const city = allCities.find(c => c.id === activeCityId);
+      if (!city || city.photos.length === 0) {
+        closeLightbox();
+        return;
+      }
+
+      const photo = city.photos[currentLightboxIndex];
+      lightboxImg.src = photo.url;
+      lightboxCaption.textContent = photo.caption;
+      lightboxCounter.textContent = `${currentLightboxIndex + 1} / ${city.photos.length}`;
+    }
+
+    function changeLightboxImage(direction) {
+      const city = allCities.find(c => c.id === activeCityId);
+      if (!city || city.photos.length === 0) return;
+
+      currentLightboxIndex += direction;
+      if (currentLightboxIndex < 0) currentLightboxIndex = city.photos.length - 1;
+      else if (currentLightboxIndex >= city.photos.length) currentLightboxIndex = 0;
+
+      updateLightboxDisplay();
+    }
+
+    function closeLightbox() {
+      lightboxModal.style.display = "none";
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if (lightboxModal.style.display === "flex") {
+        if (e.key === "ArrowLeft") changeLightboxImage(-1);
+        if (e.key === "ArrowRight") changeLightboxImage(1);
+        if (e.key === "Escape") closeLightbox();
+      }
+    });
+
+    // --- 7. Add City Modal Handlers ---
+    function openAddCityModal() {
+      if (!selectedRegion) return;
+      const regionCities = allCities.filter(c => c.regionId === selectedRegion.id);
+      if (regionCities.length >= MAX_CITIES_PER_REGION) {
+        alert(`You have reached the maximum limit of ${MAX_CITIES_PER_REGION} cities for ${selectedRegion.name}.`);
+        return;
+      }
+
+      document.getElementById("target-state-display").value = selectedRegion.name;
+      document.getElementById("modal-title").textContent = `Add City to ${selectedRegion.name} (${regionCities.length}/${MAX_CITIES_PER_REGION})`;
+      document.getElementById("add-modal").style.display = "flex";
+      document.getElementById("modal-backdrop").style.display = "block";
+    }
+
+    function closeAddCityModal() {
+      document.getElementById("add-modal").style.display = "none";
+      document.getElementById("modal-backdrop").style.display = "none";
+    }
+
+    function updateSelectedFileLabel(input) {
+      const label = document.getElementById("file-count-text");
+      if (input.files && input.files.length > 0) {
+        label.textContent = `✓ ${input.files.length} photo(s) selected`;
+        label.style.color = "#10b981";
+      } else {
+        label.textContent = "No images chosen yet";
+        label.style.color = "#9ca3af";
+      }
+    }
+
+    async function saveNewCity() {
+      const name = document.getElementById("new-city-name").value.trim();
+      const color = document.getElementById("new-city-color").value;
+      const x = parseFloat(document.getElementById("pos-x").value) || 0;
+      const y = parseFloat(document.getElementById("pos-y").value) || 0;
+      const fileInput = document.getElementById("new-city-files");
+
+      if (!name) {
+        alert("Please enter a city name.");
+        return;
+      }
+
+      const regionCities = allCities.filter(c => c.regionId === selectedRegion.id);
+      if (regionCities.length >= MAX_CITIES_PER_REGION) {
+        alert(`Maximum limit of ${MAX_CITIES_PER_REGION} cities reached for this region.`);
+        return;
+      }
+
+      const currentRegionPhotosCount = regionCities.reduce((acc, c) => acc + c.photos.length, 0);
+      const incomingFilesCount = fileInput.files.length;
+
+      if (currentRegionPhotosCount + incomingFilesCount > MAX_IMAGES_PER_REGION) {
+        alert(`Adding these photos would exceed the limit of ${MAX_IMAGES_PER_REGION} images for ${selectedRegion.name}.`);
+        return;
+      }
+
+      const photoList = [];
+      if (incomingFilesCount > 0) {
+        for (let i = 0; i < incomingFilesCount; i++) {
+          const file = fileInput.files[i];
+          const dataUrl = await readFileAsBase64(file);
+          photoList.push({
+            url: dataUrl,
+            caption: file.name.replace(/\.[^/.]+$/, "")
+          });
+        }
+      }
+
+      const newCity = {
+        id: selectedRegion.id + "-" + name.toLowerCase().replace(/\s+/g, "-") + "-" + Date.now(),
+        regionId: selectedRegion.id,
+        name: name,
+        color: color,
+        position: `${x} ${y} 0.05`,
+        photos: photoList
+      };
+
+      await saveCityToDB(newCity);
+      allCities.push(newCity);
+      renderPinsForActiveRegion();
+      closeAddCityModal();
+
+      document.getElementById("new-city-name").value = "";
+      document.getElementById("new-city-files").value = "";
+      document.getElementById("file-count-text").textContent = "No images chosen yet";
+      document.getElementById("file-count-text").style.color = "#9ca3af";
+    }
+
+    // --- 8. Export / Restore Backup Utilities ---
+    function exportDataBackup() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(allCities, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `rohan_ar_backup_${new Date().toISOString().slice(0,10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    async function importDataBackup(input) {
+      if (!input.files || input.files.length === 0) return;
+      const file = input.files[0];
+      const reader = new FileReader();
+
+      reader.onload = async (e) => {
+        try {
+          const importedCities = JSON.parse(e.target.result);
+          if (Array.isArray(importedCities)) {
+            for (const city of importedCities) {
+              await saveCityToDB(city);
+            }
+            allCities = await loadAllCities();
+            renderPortal();
+            alert("✓ Backup restored successfully!");
+          }
+        } catch (err) {
+          alert("Error restoring backup file: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // --- 9. App Boot Sequence ---
+    window.addEventListener("DOMContentLoaded", async () => {
+      await openDatabase();
+      allCities = await loadAllCities();
+      renderPortal();
+    });
+  </script>
+</body>
+</html>
