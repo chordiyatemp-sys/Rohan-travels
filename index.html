@@ -1025,12 +1025,12 @@
     const EMAILJS_PUBLIC_KEY = "WnVcfbGTY0D5zOLdm";
     const ADMIN_EMAIL = "chordiyatemp@gmail.com";
 
-    // Initialize EmailJS
-    (function(){
-      if (EMAILJS_PUBLIC_KEY !== "YOUR_PUBLIC_KEY") {
+    // Initialize EmailJS safely
+    window.addEventListener("DOMContentLoaded", () => {
+      if (typeof emailjs !== "undefined" && EMAILJS_PUBLIC_KEY !== "YOUR_PUBLIC_KEY") {
         emailjs.init(EMAILJS_PUBLIC_KEY);
       }
-    })();
+    });
 
     let currentPassword = localStorage.getItem("site_pwd") || "RohanTravels2026";
     let generatedVerificationCode = null;
@@ -1143,7 +1143,7 @@
       errDiv.style.display = "none";
 
       if (EMAILJS_PUBLIC_KEY === "YOUR_PUBLIC_KEY") {
-        alert("Please configure your EmailJS credentials inside the script to send emails to chordiyatemp@gmail.com.");
+        alert("Please configure your EmailJS credentials inside the script.");
         return;
       }
 
