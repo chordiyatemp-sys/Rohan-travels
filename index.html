@@ -139,6 +139,16 @@
       display: none;
     }
 
+    .link-btn {
+      background: none;
+      border: none;
+      color: #60a5fa;
+      font-size: 12px;
+      cursor: pointer;
+      text-decoration: underline;
+      margin-top: 4px;
+    }
+
     /* =========================================================================
        VIEW 1: STATE SELECTION PORTAL (HOME)
        ========================================================================= */
@@ -803,10 +813,32 @@
   <div id="lock-screen" class="screen-overlay">
     <div class="auth-card">
       <h2>Restricted Access</h2>
-      <p>Enter the password to unlock Rohan's Travels AR Explorer</p>
-      <input type="password" id="site-password-input" class="auth-input" placeholder="Enter password..." onkeydown="if(event.key==='Enter') verifySitePassword()">
-      <div id="lock-error" class="auth-error">Incorrect password. Please try again.</div>
-      <button class="auth-btn" onclick="verifySitePassword()">Unlock Explorer</button>
+      <p id="lock-subtitle">Enter the password to unlock Rohan's Travels AR Explorer</p>
+      
+      <!-- Main Login View -->
+      <div id="login-form-view" style="display: flex; flex-direction: column; gap: 12px;">
+        <input type="password" id="site-password-input" class="auth-input" placeholder="Enter password..." onkeydown="if(event.key==='Enter') verifySitePassword()">
+        <div id="lock-error" class="auth-error">Incorrect password. Please try again.</div>
+        <button class="auth-btn" onclick="verifySitePassword()">Unlock Explorer</button>
+        <button class="link-btn" onclick="openForgotPasswordView()">Forgot Password?</button>
+      </div>
+
+      <!-- Forgot Password Request View -->
+      <div id="forgot-req-view" style="display: none; flex-direction: column; gap: 12px;">
+        <p style="font-size: 12px; color: var(--text-muted);">Verification code will be sent to <strong>chordiyatemp@gmail.com</strong></p>
+        <button class="auth-btn" id="forgot-send-btn" onclick="requestForgotPasswordCode()">Send Verification Code</button>
+        <div id="forgot-req-error" class="auth-error">Failed to send email.</div>
+        <button class="link-btn" onclick="backToLoginView()">Back to Login</button>
+      </div>
+
+      <!-- Forgot Password Verify & Reset View -->
+      <div id="forgot-verify-view" style="display: none; flex-direction: column; gap: 12px;">
+        <input type="text" id="forgot-code-input" class="auth-input" placeholder="Enter 6-digit code...">
+        <input type="password" id="forgot-new-pwd" class="auth-input" placeholder="Enter new password...">
+        <button class="auth-btn" onclick="confirmForgotPasswordReset()" style="background: var(--accent);">Reset & Unlock</button>
+        <div id="forgot-ver-error" class="auth-error">Invalid verification code.</div>
+        <button class="link-btn" onclick="backToLoginView()">Back to Login</button>
+      </div>
     </div>
   </div>
 
@@ -1015,6 +1047,72 @@
         errorDiv.style.display = "block";
         document.getElementById("site-password-input").value = "";
       }
+    }
+
+    // --- Forgot Password Flow Functions ---
+    function openForgotPasswordView() {
+      document.getElementById("login-form-view").style.display = "none";
+      document.getElementById("forgot-req-view").style.display = "flex";
+      document.getElementById("forgot-verify-view").style.display = "none";
+      document.getElementById("lock-subtitle").textContent = "Reset your password via email verification";
+    }
+
+    function backToLoginView() {
+      document.getElementById("login-form-view").style.display = "flex";
+      document.getElementById("forgot-req-view").style.display = "none";
+      document.getElementById("forgot-verify-view").style.display = "none";
+      document.getElementById("lock-subtitle").textContent = "Enter the password to unlock Rohan's Travels AR Explorer";
+    }
+
+    function requestForgotPasswordCode() {
+      const sendBtn = document.getElementById("forgot-send-btn");
+      const errDiv = document.getElementById("forgot-req-error");
+
+      if (EMAILJS_PUBLIC_KEY === "YOUR_PUBLIC_KEY") {
+        alert("Please configure your EmailJS credentials.");
+        return;
+      }
+
+      generatedVerificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      sendBtn.textContent = "Sending email...";
+      sendBtn.disabled = true;
+
+      const templateParams = {
+        to_email: ADMIN_EMAIL,
+        verification_code: generatedVerificationCode
+      };
+
+      emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams)
+        .then(() => {
+          sendBtn.textContent = "Send Verification Code";
+          sendBtn.disabled = false;
+          document.getElementById("forgot-req-view").style.display = "none";
+          document.getElementById("forgot-verify-view").style.display = "flex";
+        }, (error) => {
+          sendBtn.textContent = "Send Verification Code";
+          sendBtn.disabled = false;
+          errDiv.style.display = "block";
+          errDiv.textContent = "Failed to send email: " + JSON.stringify(error);
+        });
+    }
+
+    function confirmForgotPasswordReset() {
+      const codeInput = document.getElementById("forgot-code-input").value;
+      const newPwdInput = document.getElementById("forgot-new-pwd").value;
+      const errDiv = document.getElementById("forgot-ver-error");
+
+      if (codeInput !== generatedVerificationCode || !newPwdInput) {
+        errDiv.style.display = "block";
+        return;
+      }
+      errDiv.style.display = "none";
+
+      currentPassword = newPwdInput;
+      localStorage.setItem("site_pwd", currentPassword);
+
+      sessionStorage.setItem("ar_unlocked", "true");
+      document.getElementById("lock-screen").style.display = "none";
+      document.getElementById("portal-view").style.display = "flex";
     }
 
     function openChangePasswordModal() {
